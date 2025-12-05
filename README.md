@@ -217,21 +217,3 @@ Copy code
 "genuine_probability": 0.88,
 "timestamp": "2025-12-05T10:15:30"
 }
-
-yaml
-Copy code
-
----
-
-# 🧭 GitHub Setup — How to Push Your Code
-
-## Step 1 — Install Git
-sudo apt update
-sudo apt install git
-
-shell
-Copy code
-
-## Step 2 — Configure Git
-git config --global user.name "Your Name"
-git config --global user.email "your@email.com"
