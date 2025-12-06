@@ -1,4 +1,4 @@
-#!/home/parzival/Documents/upi_fraud_ml/venv/bin/python3
+#!/home/parzival/Documents/upi_fraud_detection_app/upi_fraud_ml/venv/bin/python3
 # -*- coding: utf-8 -*-
 import re
 import sys

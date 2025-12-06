@@ -56,6 +56,7 @@ export default function Dashboard() {
   ];
 
   return (
+    <div className="page-container">
     <div style={styles.page}>
       <NavBar />
 
@@ -129,6 +130,7 @@ export default function Dashboard() {
         </section>
       </main>
     </div>
+    </div>
   );
 }
 
@@ -143,11 +145,14 @@ const styles = {
     padding: "20px",
   },
   card: {
-    background: "rgba(15,23,42,0.95)",
-    borderRadius: "18px",
-    padding: "18px 20px 20px",
-    border: "1px solid rgba(148,163,184,0.4)",
-    boxShadow: "0 24px 60px rgba(15,23,42,0.9)",
+    width: "100%",
+    minHeight: "700px",
+    background: "rgba(15, 23, 42, 0.85)",
+    backdropFilter: "blur(8px)",
+    borderRadius: "20px",
+    padding: "30px",
+    border: "1px solid rgba(255,255,255,0.2)",
+    boxShadow: "0 8px 30px rgba(0,0,0,0.6)",
   },
   cardHeader: {
     display: "flex",

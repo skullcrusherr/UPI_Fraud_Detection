@@ -39,6 +39,7 @@ export default function Login() {
   }
 
   return (
+    <div className="page-container">
     <div style={styles.page}>
       <div style={styles.card}>
         <div style={styles.badge}>UPI Guard</div>
@@ -111,6 +112,7 @@ export default function Login() {
         </form>
       </div>
     </div>
+    </div>
   );
 }
 
@@ -124,13 +126,13 @@ const styles = {
   },
   card: {
     width: "100%",
-    maxWidth: "420px",
+    minHeight: "450px",
+    background: "rgba(15, 23, 42, 0.85)",
+    backdropFilter: "blur(8px)",
     borderRadius: "20px",
-    padding: "28px 26px 26px",
-    background:
-      "linear-gradient(145deg, rgba(15,23,42,0.95), rgba(15,23,42,0.88))",
-    border: "1px solid rgba(148,163,184,0.4)",
-    boxShadow: "0 24px 60px rgba(15,23,42,0.9)",
+    padding: "30px",
+    border: "1px solid rgba(255,255,255,0.2)",
+    boxShadow: "0 8px 30px rgba(0,0,0,0.6)",
   },
   badge: {
     display: "inline-block",

@@ -51,6 +51,7 @@ export default function Scanner() {
   }
 
   return (
+    
     <div style={styles.page}>
       <NavBar />
 
@@ -122,6 +123,7 @@ export default function Scanner() {
         </div>
       </main>
     </div>
+    
   );
 }
 

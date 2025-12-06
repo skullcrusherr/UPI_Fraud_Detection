@@ -33,7 +33,7 @@ end
 # Unset irrelevant variables.
 deactivate nondestructive
 
-set -gx VIRTUAL_ENV /home/parzival/Documents/upi_fraud_ml/venv
+set -gx VIRTUAL_ENV /home/parzival/Documents/upi_fraud_detection_app/upi_fraud_ml/venv
 
 set -gx _OLD_VIRTUAL_PATH $PATH
 set -gx PATH "$VIRTUAL_ENV/"bin $PATH
