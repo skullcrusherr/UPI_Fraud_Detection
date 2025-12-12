@@ -1,4 +1,4 @@
-```markdown
+
 # 🔐 UPI Guard: ML-Powered UPI URL & QR Fraud Detection Platform
 **Tech Stack:** React (Vite) · Django (DRF) · Scikit-learn · MongoDB Atlas · QR Decode + Safe QR Render · Webcam Capture  
 **Goal:** Detect **phishing / malicious payment URLs** and **fraud QR payloads** *before* a user proceeds to payment.
