@@ -1,244 +1,297 @@
 // src/pages/Scanner.jsx
-import { useState } from "react";
+import { useRef, useState } from "react";
 import NavBar from "../components/NavBar";
 import { scanURL, scanQR } from "../api/detector";
-import ResultCard from "../components/ResultCard";
+import Webcam from "react-webcam";
 
 export default function Scanner() {
-  const [url, setUrl] = useState("");
-  const [file, setFile] = useState(null);
-  const [result, setResult] = useState(null);
+  const [rawUrl, setRawUrl] = useState("");
+  const [selectedFile, setSelectedFile] = useState(null);
+
   const [decodedText, setDecodedText] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
   const [error, setError] = useState("");
+
+  // Webcam state
+  const webcamRef = useRef(null);
+  const [cameraOn, setCameraOn] = useState(false);
+  const [capturedPreview, setCapturedPreview] = useState(null);
+  const [isCapturing, setIsCapturing] = useState(false);
 
   async function handleScanUrl() {
     setError("");
-    if (!url.trim()) {
-      setError("Please paste a UPI or website link.");
-      return;
-    }
+    setResult(null);
+    setDecodedText("");
+
     try {
-      setLoading(true);
-      const data = await scanURL(url.trim());
+      const data = await scanURL(rawUrl);
       setResult(data);
-      setDecodedText(""); // URL mode uses raw_url only
-    } catch (err) {
-      console.error(err);
+    } catch (e) {
+      console.error(e);
       setError("Failed to scan URL. Is Django running?");
-    } finally {
-      setLoading(false);
     }
   }
 
-  async function handleScanQR() {
+  async function handleScanFile() {
     setError("");
-    if (!file) {
-      setError("Please choose a QR image first.");
+    setResult(null);
+    setDecodedText("");
+
+    if (!selectedFile) {
+      setError("Please choose a QR image file first.");
       return;
     }
+
     try {
-      setLoading(true);
-      const data = await scanQR(file);
+      const data = await scanQR(selectedFile);
       setDecodedText(data.decoded_payload || "");
       setResult(data);
-    } catch (err) {
-      console.error(err);
-      setError("Failed to decode QR. Check the image quality.");
-    } finally {
-      setLoading(false);
+    } catch (e) {
+      console.error(e);
+      setError("Failed to scan QR image.");
     }
   }
 
+  // Convert webcam screenshot (dataURL) -> File
+  function dataUrlToFile(dataUrl, filename) {
+    const arr = dataUrl.split(",");
+    const mimeMatch = arr[0].match(/:(.*?);/);
+    const mime = mimeMatch ? mimeMatch[1] : "image/jpeg";
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) u8arr[n] = bstr.charCodeAt(n);
+    return new File([u8arr], filename, { type: mime });
+  }
+
+  async function handleCaptureAndScan() {
+    setError("");
+    setResult(null);
+    setDecodedText("");
+    setIsCapturing(true);
+
+    try {
+      const screenshot = webcamRef.current?.getScreenshot();
+      if (!screenshot) {
+        setError("Could not capture image. Please allow camera permission.");
+        setIsCapturing(false);
+        return;
+      }
+
+      setCapturedPreview(screenshot);
+
+      // Turn captured frame into file and reuse existing scanQR()
+      const file = dataUrlToFile(screenshot, "webcam_qr.jpg");
+      const data = await scanQR(file);
+
+      setDecodedText(data.decoded_payload || "");
+      setResult(data);
+    } catch (e) {
+      console.error(e);
+      setError("Failed to capture/scan from webcam.");
+    } finally {
+      setIsCapturing(false);
+    }
+  }
+
+  const prediction = result?.prediction?.toUpperCase?.() || "";
+  const fraudProb =
+    typeof result?.fraud_probability === "number"
+      ? result.fraud_probability.toFixed(3)
+      : "";
+  const genuineProb =
+    typeof result?.genuine_probability === "number"
+      ? result.genuine_probability.toFixed(3)
+      : "";
+
   return (
-    
     <div style={styles.page}>
       <NavBar />
 
       <main style={styles.main}>
-        <div style={styles.leftColumn}>
-          <h1 style={styles.heading}>UPI Fraud Detector</h1>
-          <p style={styles.subheading}>
-            Paste a UPI payment link or upload a QR image to check if it’s
-            genuine, suspicious, or fraud <span>before</span> you pay.
+        <section style={styles.card}>
+          <h1 style={styles.h1}>UPI Fraud Detector</h1>
+          <p style={styles.p}>
+            Paste UPI links or upload/scan QR codes to check for fraud before paying.
           </p>
 
-          <section style={styles.card}>
-            <p style={styles.sectionLabel}>1. Paste UPI Link / URL</p>
-            <div style={styles.inputRow}>
-              <input
-                style={styles.input}
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="upi://pay?pa=abcd@okaxis&am=500 or https://paytm.com/recharge?amount=500"
-              />
-              <button
-                style={styles.primaryBtn}
-                onClick={handleScanUrl}
-                disabled={loading}
-              >
-                {loading ? "Scanning..." : "Scan URL"}
-              </button>
-            </div>
-          </section>
+          {/* URL scan */}
+          <div style={styles.block}>
+            <h3 style={styles.h3}>1. Paste UPI Link / URL</h3>
+            <input
+              style={styles.input}
+              value={rawUrl}
+              onChange={(e) => setRawUrl(e.target.value)}
+              placeholder="upi://pay?pa=... OR https://..."
+            />
+            <button style={styles.btn} onClick={handleScanUrl}>
+              Scan URL
+            </button>
+          </div>
 
-          <section style={styles.card}>
-            <p style={styles.sectionLabel}>2. Or Upload QR Image</p>
-            <div style={styles.qrRow}>
+          {/* Upload QR */}
+          <div style={styles.block}>
+            <h3 style={styles.h3}>2. Or Upload QR Image</h3>
+            <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
               <input
                 type="file"
                 accept="image/*"
-                onChange={(e) => setFile(e.target.files[0] || null)}
+                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                style={styles.btnAlt}
               />
-              <button
-                style={styles.secondaryBtn}
-                onClick={handleScanQR}
-                disabled={loading}
-              >
-                {loading ? "Scanning..." : "Scan QR Image"}
+              <button style={styles.btnGreen} onClick={handleScanFile}>
+                Scan QR Image
               </button>
             </div>
-            {decodedText && (
-              <p style={styles.decoded}>
-                <strong>Decoded from QR:</strong> {decodedText}
-              </p>
+          </div>
+
+          {/* Webcam QR */}
+          <div style={styles.block}>
+            <h3 style={styles.h3}>3. Live Webcam QR Scan</h3>
+
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              <button
+                style={styles.btnAlt}
+                onClick={() => setCameraOn((v) => !v)}
+              >
+                {cameraOn ? "Turn Off Camera" : "Turn On Camera"}
+              </button>
+
+              <button
+                style={{
+                  ...styles.btn,
+                  opacity: cameraOn ? 1 : 0.5,
+                  cursor: cameraOn ? "pointer" : "not-allowed",
+                }}
+                disabled={!cameraOn || isCapturing}
+                onClick={handleCaptureAndScan}
+              >
+                {isCapturing ? "Capturing..." : "Capture & Scan"}
+              </button>
+            </div>
+
+            {cameraOn && (
+              <div style={styles.webcamWrap}>
+                <Webcam
+                  ref={webcamRef}
+                  audio={false}
+                  screenshotFormat="image/jpeg"
+                  videoConstraints={{
+                    facingMode: "environment", // uses back camera on phones (if supported)
+                  }}
+                  style={styles.webcam}
+                />
+              </div>
             )}
-          </section>
+
+            {capturedPreview && (
+              <div style={{ marginTop: 12 }}>
+                <div style={styles.smallLabel}>Captured Preview</div>
+                <img
+                  src={capturedPreview}
+                  alt="Captured"
+                  style={styles.preview}
+                />
+              </div>
+            )}
+          </div>
 
           {error && <div style={styles.error}>{error}</div>}
-        </div>
 
-        <div style={styles.rightColumn}>
-          {result ? (
-            <ResultCard data={result} />
-          ) : (
-            <div style={styles.placeholderCard}>
-              <p style={styles.placeholderTitle}>No scan yet</p>
-              <p style={styles.placeholderText}>
-                Once you scan a URL or QR, the prediction and safe payment QR
-                will appear here.
-              </p>
+          {/* Result box */}
+          {result && (
+            <div style={styles.resultBox}>
+              <div style={styles.prediction}>{prediction}</div>
+              <div style={styles.metric}>Fraud Probability: {fraudProb}</div>
+              <div style={styles.metric}>Genuine Probability: {genuineProb}</div>
+
+              {decodedText && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={styles.smallLabel}>Decoded from QR:</div>
+                  <div style={styles.decoded}>{decodedText}</div>
+                </div>
+              )}
             </div>
           )}
-        </div>
+        </section>
       </main>
     </div>
-    
   );
 }
 
 const styles = {
-  page: {
-    minHeight: "100vh",
-    color: "#e5e7eb",
-  },
-  main: {
-    maxWidth: "1180px",
-    margin: "0 auto",
-    padding: "20px",
-    display: "grid",
-    gridTemplateColumns: "minmax(0, 1.3fr) minmax(0, 1fr)",
-    gap: "24px",
-  },
-  leftColumn: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "14px",
-  },
-  heading: {
-    fontSize: "26px",
-    margin: 0,
-  },
-  subheading: {
-    fontSize: "13px",
-    color: "#9ca3af",
-    marginTop: "4px",
-    marginBottom: "10px",
-  },
+  page: { minHeight: "100vh", color: "#e5e7eb" },
+  main: { maxWidth: 1180, margin: "0 auto", padding: 20 },
   card: {
-    background: "rgba(15,23,42,0.95)",
-    borderRadius: "14px",
-    padding: "16px 18px",
-    border: "1px solid rgba(148,163,184,0.4)",
-    boxShadow: "0 20px 45px rgba(15,23,42,0.9)",
+    background: "rgba(15,23,42,0.92)",
+    border: "1px solid rgba(148,163,184,0.35)",
+    borderRadius: 18,
+    padding: 18,
+    boxShadow: "0 24px 60px rgba(15,23,42,0.9)",
   },
-  sectionLabel: {
-    fontSize: "13px",
-    marginBottom: "10px",
-    fontWeight: 500,
-  },
-  inputRow: {
-    display: "flex",
-    gap: "10px",
-  },
+  h1: { margin: 0, fontSize: 22 },
+  p: { marginTop: 6, color: "#94a3b8", fontSize: 13 },
+  h3: { margin: "0 0 10px", fontSize: 14 },
+  block: { marginTop: 18 },
   input: {
-    flex: 1,
-    padding: "9px 11px",
-    borderRadius: "10px",
-    border: "1px solid rgba(55,65,81,0.9)",
-    backgroundColor: "#020617",
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 10,
+    border: "1px solid rgba(148,163,184,0.35)",
+    background: "rgba(2,6,23,0.6)",
     color: "#e5e7eb",
-    fontSize: "13px",
     outline: "none",
   },
-  primaryBtn: {
-    padding: "0 14px",
-    borderRadius: "999px",
-    border: "none",
-    background:
-      "linear-gradient(135deg, #4f46e5, #22c55e)",
-    color: "#020617",
-    fontWeight: 600,
-    cursor: "pointer",
-    fontSize: "13px",
-    whiteSpace: "nowrap",
+  btn: {
+    marginTop: 10,
+    padding: "10px 14px",
+    borderRadius: 10,
+    border: "1px solid rgba(99,102,241,0.5)",
+    background: "linear-gradient(135deg,#4f46e5,#06b6d4)",
+    color: "#0b1220",
+    fontWeight: 700,
   },
-  secondaryBtn: {
-    padding: "7px 14px",
-    borderRadius: "999px",
-    border: "1px solid rgba(148,163,184,0.4)",
-    background: "transparent",
+  btnGreen: {
+    padding: "10px 14px",
+    borderRadius: 10,
+    border: "1px solid rgba(34,197,94,0.45)",
+    background: "linear-gradient(135deg,#22c55e,#14b8a6)",
+    color: "#052e16",
+    fontWeight: 700,
+  },
+  btnAlt: {
+    marginTop: 10,
+    padding: "10px 14px",
+    borderRadius: 10,
+    border: "1px solid rgba(148,163,184,0.35)",
+    background: "rgba(2,6,23,0.6)",
     color: "#e5e7eb",
-    cursor: "pointer",
-    fontSize: "13px",
+    fontWeight: 600,
   },
-  qrRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: "10px",
+  webcamWrap: {
+    marginTop: 12,
+    borderRadius: 14,
+    overflow: "hidden",
+    border: "1px solid rgba(148,163,184,0.35)",
+    maxWidth: 520,
   },
-  decoded: {
-    marginTop: "10px",
-    fontSize: "12px",
-    color: "#9ca3af",
-    wordBreak: "break-all",
+  webcam: { width: "100%", display: "block" },
+  preview: {
+    width: "100%",
+    maxWidth: 260,
+    borderRadius: 12,
+    border: "1px solid rgba(148,163,184,0.35)",
   },
-  error: {
-    marginTop: "6px",
-    fontSize: "12px",
-    color: "#f97316",
+  resultBox: {
+    marginTop: 18,
+    border: "1px solid rgba(34,197,94,0.35)",
+    background: "rgba(2,6,23,0.55)",
+    borderRadius: 16,
+    padding: 16,
   },
-  rightColumn: {
-    display: "flex",
-    alignItems: "stretch",
-    justifyContent: "center",
-  },
-  placeholderCard: {
-    alignSelf: "stretch",
-    background: "rgba(15,23,42,0.85)",
-    borderRadius: "14px",
-    padding: "18px 20px",
-    border: "1px dashed rgba(148,163,184,0.5)",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-  },
-  placeholderTitle: {
-    fontSize: "16px",
-    marginBottom: "6px",
-  },
-  placeholderText: {
-    fontSize: "13px",
-    color: "#9ca3af",
-  },
+  prediction: { fontSize: 16, fontWeight: 800, color: "#22c55e" },
+  metric: { marginTop: 6, fontSize: 13, color: "#e5e7eb" },
+  decoded: { marginTop: 6, fontSize: 13, color: "#cbd5e1" },
+  smallLabel: { fontSize: 12, color: "#94a3b8" },
+  error: { marginTop: 14, color: "#fb923c", fontSize: 13 },
 };
