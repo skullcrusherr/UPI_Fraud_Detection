@@ -40,3 +40,16 @@ export async function getHistory(limit = 50) {
 
   return await res.json(); // { results: [...] }
 }
+export async function evaluateUpi(payload) {
+  const res = await fetch(`${API_BASE}/api/upi-evaluate/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  if (!res.ok) {
+    const txt = await res.text();
+    throw new Error(`Backend error: ${res.status} - ${txt}`);
+  }
+  return await res.json();
+}
